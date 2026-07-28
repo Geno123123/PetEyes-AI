@@ -1,0 +1,32 @@
+services:
+  capstone-db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: capstone
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - backend
+
+  app:
+    image: ${DOCKERHUB_USERNAME}/akiba-backend:latest
+    platform: linux/amd64
+    restart: always
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      DB_USERNAME: root
+    depends_on:
+      - capstone-db
+    networks:
+      - backend
+
+volumes:
+  mysql_data:
+
+networks:
+  backend:

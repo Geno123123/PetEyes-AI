@@ -1,0 +1,23 @@
+# === OS / Editor ===
+.DS_Store
+.vscode/
+.idea/
+
+# === Secrets ===
+.env
+*.env
+!*.env.example
+
+# === AI server (Python) ===
+ai-server/__pycache__/
+ai-server/**/__pycache__/
+ai-server/*.pyc
+ai-server/venv/
+ai-server/.venv/
+ai-server/models/
+ai-server/chroma_db/
+
+# === Frontend (React Native / Expo) — will apply once frontend/ is added ===
+frontend/node_modules/
+frontend/.expo/
+frontend/dist/

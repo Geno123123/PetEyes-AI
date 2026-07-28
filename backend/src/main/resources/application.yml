@@ -1,0 +1,32 @@
+server:
+  forward-headers-strategy: framework
+
+spring:
+  profiles:
+    active: local # ???? local? ??
+  servlet:
+    multipart:
+      max-file-size: 30MB
+      max-request-size: 30MB
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger
+
+app:
+  ai:
+    server-base-url: https://coke-landowner-skype.ngrok-free.dev
+  naver:
+    search:
+      client-id: ${NAVER_SEARCH_CLIENT_ID:}
+      client-secret: ${NAVER_SEARCH_CLIENT_SECRET:}
+  s3:
+    region: ap-northeast-2
+    access-key: ${AWS_ACCESS_KEY_ID:}
+    secret-key: ${AWS_SECRET_ACCESS_KEY:}
+    bucket: ${AWS_S3_BUCKET:}
+    public-base-url: ${AWS_S3_PUBLIC_BASE_URL:}
+    key-prefix: uploads
+    max-file-size-bytes: 31457280

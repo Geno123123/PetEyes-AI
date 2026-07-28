@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CampusTable 관리자</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
+
+  /* Login */
+  #login-page { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .login-card { background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,.1); width: 360px; }
+  .login-card h1 { font-size: 22px; margin-bottom: 24px; text-align: center; color: #1a1a2e; }
+  .login-card input { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; margin-bottom: 12px; }
+  .login-card button { width: 100%; padding: 11px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; }
+  .login-card button:hover { background: #4338ca; }
+  #login-error { color: #ef4444; font-size: 13px; margin-top: 8px; text-align: center; }
+
+  /* Layout */
+  #app { display: none; height: 100vh; }
+  .sidebar { width: 220px; background: #1a1a2e; color: #fff; position: fixed; top: 0; left: 0; height: 100vh; padding: 24px 0; }
+  .sidebar h2 { font-size: 16px; padding: 0 20px 20px; border-bottom: 1px solid #2d2d4e; }
+  .sidebar nav a { display: block; padding: 12px 20px; color: #a0aec0; text-decoration: none; font-size: 14px; cursor: pointer; }
+  .sidebar nav a:hover, .sidebar nav a.active { background: #2d2d4e; color: #fff; }
+  .sidebar .logout { position: absolute; bottom: 20px; left: 0; right: 0; padding: 12px 20px; color: #a0aec0; cursor: pointer; font-size: 14px; }
+  .sidebar .logout:hover { color: #fff; }
+  .main { margin-left: 220px; padding: 28px; }
+
+  /* Section */
+  .section { display: none; }
+  .section.active { display: block; }
+  .section h2 { font-size: 20px; margin-bottom: 20px; }
+
+  /* Stats */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .stat-card { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .stat-card .label { font-size: 13px; color: #666; margin-bottom: 6px; }
+  .stat-card .value { font-size: 28px; font-weight: 700; color: #4f46e5; }
+  .stat-foot { margin-top: 10px; display: flex; align-items: center; gap: 8px; }
+  .delta-badge { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .delta-up { background: #dcfce7; color: #166534; }
+  .delta-down { background: #fee2e2; color: #991b1b; }
+  .delta-flat { background: #e5e7eb; color: #4b5563; }
+  .delta-note { font-size: 12px; color: #6b7280; }
+
+  /* Table */
+  .table-wrap { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+  .table-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #f0f0f0; }
+  .table-toolbar h3 { font-size: 15px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #f8f9fa; padding: 10px 14px; text-align: left; font-weight: 600; color: #555; border-bottom: 1px solid #eee; }
+  td { padding: 10px 14px; border-bottom: 1px solid #f5f5f5; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafafa; }
+
+  /* Buttons */
+  .btn { padding: 6px 14px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
+  .btn-primary { background: #4f46e5; color: #fff; }
+  .btn-primary:hover { background: #4338ca; }
+  .btn-danger { background: #ef4444; color: #fff; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-warning { background: #f59e0b; color: #fff; }
+  .btn-warning:hover { background: #d97706; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #fff; border-radius: 12px; padding: 28px; width: 460px; max-width: 95vw; }
+  .modal h3 { margin-bottom: 20px; font-size: 16px; }
+  .modal label { display: block; font-size: 13px; color: #555; margin-bottom: 4px; }
+  .modal input[type=text], .modal input[type=number] { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; margin-bottom: 12px; }
+  .modal-row { display: flex; gap: 10px; }
+  .modal-row > div { flex: 1; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+  .btn-cancel { background: #e5e7eb; color: #333; }
+  .proof-image { width: 100%; max-height: 320px; object-fit: contain; border: 1px solid #e5e7eb; border-radius: 8px; background: #fafafa; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .badge-green { background: #d1fae5; color: #065f46; }
+  .badge-gray { background: #f3f4f6; color: #6b7280; }
+  .badge-blue { background: #dbeafe; color: #1e40af; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+
+  .loading { text-align: center; padding: 40px; color: #999; }
+  .chart-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; align-items: start; }
+  .chart-left { display: grid; gap: 16px; }
+  .chart-card { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 16px; }
+  .chart-card h3 { font-size: 15px; margin-bottom: 10px; color: #444; }
+  .chart-wrap { position: relative; height: 320px; }
+  .pie-wrap { position: relative; height: 280px; }
+  .pie-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .rank-list { margin-top: 12px; display: grid; gap: 8px; }
+  .rank-item { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+  .rank-item .left { color: #374151; }
+  .rank-item .right { color: #111827; font-weight: 700; }
+  .btn-secondary { background: #2563eb; color: #fff; }
+  .btn-secondary:hover { background: #1d4ed8; }
+  @media (max-width: 1200px) {
+    .chart-grid { grid-template-columns: 1fr; }
+    .pie-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login-page">
+  <div class="login-card">
+    <h1>🐾 관리자 로그인</h1>
+    <input type="text" id="login-email" placeholder="이메일" />
+    <input type="password" id="login-password" placeholder="비밀번호" />
+    <button onclick="login()">로그인</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <div class="sidebar">
+    <h2>CampusTable Admin</h2>
+    <nav>
+      <a onclick="showSection('stats')" class="active">📊 통계</a>
+      <a onclick="showSection('users')">👤 유저 관리</a>
+      <a onclick="showSection('hospitals')">🏥 병원 관리</a>
+      <a onclick="showSection('reviews')">⭐ 리뷰 관리</a>
+      <a onclick="showSection('qna')">💬 QnA 관리</a>
+    </nav>
+    <div class="logout" onclick="logout()">🚪 로그아웃</div>
+  </div>
+
+  <div class="main">
+    <!-- 통계 -->
+    <div id="section-stats" class="section active">
+      <h2>대시보드</h2>
+      <div class="stats-grid" id="stats-grid">
+        <div class="loading">불러오는 중...</div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-left">
+          <div class="chart-card">
+            <h3>일자별 서비스 이용 추이</h3>
+            <div class="chart-wrap"><canvas id="timeline-chart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <h3>누적 사용자 증가 추이</h3>
+            <div class="pie-wrap"><canvas id="cumulative-users-chart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <h3>신규 사용자 유입</h3>
+            <div class="pie-wrap"><canvas id="user-signup-chart"></canvas></div>
+          </div>
+        </div>
+        <div>
+          <div class="chart-card">
+            <h3>질환 카테고리 점유율</h3>
+            <div class="pie-wrap"><canvas id="diagnosis-pie"></canvas></div>
+            <div class="rank-list" id="diagnosis-top5"></div>
+          </div>
+          <div class="chart-card" style="margin-top:16px;">
+            <h3>QnA 종 분포</h3>
+            <div class="pie-wrap"><canvas id="species-pie"></canvas></div>
+            <div class="rank-list" id="species-top5"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 유저 -->
+    <div id="section-users" class="section">
+      <h2>유저 관리</h2>
+      <div class="table-wrap">
+        <div class="table-toolbar"><h3 id="user-count">유저 목록</h3></div>
+        <table>
+          <thead><tr><th>ID</th><th>이름</th><th>이메일</th><th>전화번호</th><th>권한</th><th></th></tr></thead>
+          <tbody id="user-tbody"><tr><td colspan="6" class="loading">불러오는 중...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 병원 -->
+    <div id="section-hospitals" class="section">
+      <h2>병원 관리</h2>
+      <div class="table-wrap">
+        <div class="table-toolbar">
+          <h3 id="hospital-count">병원 목록</h3>
+          <button class="btn btn-primary" onclick="openHospitalModal()">+ 병원 추가</button>
+        </div>
+        <table>
+          <thead><tr><th>ID</th><th>병원명</th><th>주소</th><th>전화번호</th><th>주차</th><th>야간</th><th></th></tr></thead>
+          <tbody id="hospital-tbody"><tr><td colspan="7" class="loading">불러오는 중...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 리뷰 -->
+    <div id="section-reviews" class="section">
+      <h2>리뷰 관리</h2>
+      <div class="table-wrap">
+        <div class="table-toolbar"><h3 id="review-count">리뷰 목록</h3></div>
+        <table>
+          <thead><tr><th>ID</th><th>병원명</th><th>유저ID</th><th>내용</th><th>평점</th><th></th></tr></thead>
+          <tbody id="review-tbody"><tr><td colspan="6" class="loading">불러오는 중...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- QnA -->
+    <div id="section-qna" class="section">
+      <h2>QnA 관리</h2>
+      <div class="table-wrap">
+        <div class="table-toolbar"><h3 id="qna-count">QnA 목록</h3></div>
+        <table>
+          <thead><tr><th>ID</th><th>제목</th><th>유저ID</th><th>종류</th><th>답변</th><th>등록일</th><th></th></tr></thead>
+          <tbody id="qna-tbody"><tr><td colspan="7" class="loading">불러오는 중...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 병원 추가/수정 모달 -->
+<div class="modal-overlay" id="hospital-modal">
+  <div class="modal">
+    <h3 id="modal-title">병원 추가</h3>
+    <input type="hidden" id="modal-hospital-id" />
+    <label>병원명</label>
+    <input type="text" id="modal-name" placeholder="OO동물병원" />
+    <label>주소</label>
+    <input type="text" id="modal-address" placeholder="서울특별시 종로구..." />
+    <label>전화번호</label>
+    <input type="text" id="modal-phone" placeholder="02-1234-5678" />
+    <div class="modal-row">
+      <div><label>위도</label><input type="number" id="modal-lat" step="0.000001" placeholder="37.5665" /></div>
+      <div><label>경도</label><input type="number" id="modal-lng" step="0.000001" placeholder="126.978" /></div>
+    </div>
+    <div class="modal-row">
+      <div><label><input type="checkbox" id="modal-parking" /> 주차 가능</label></div>
+      <div><label><input type="checkbox" id="modal-night" /> 야간 진료</label></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeHospitalModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveHospital()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 수의사 인증자료 모달 -->
+<div class="modal-overlay" id="vet-proof-modal">
+  <div class="modal">
+    <h3>수의사 인증자료</h3>
+    <p style="font-size:13px;color:#555;margin-bottom:8px;">유저: <b id="vet-proof-user-name">-</b></p>
+    <p style="font-size:13px;color:#555;margin-bottom:8px;">상태: <b id="vet-proof-status">-</b></p>
+    <p style="font-size:13px;color:#555;margin-bottom:14px;">자격번호: <b id="vet-proof-license">-</b></p>
+    <img id="vet-proof-image" class="proof-image" alt="수의사 인증자료 이미지" />
+    <p id="vet-proof-empty" style="display:none;font-size:13px;color:#777;margin-top:6px;">등록된 인증 이미지가 없습니다.</p>
+    <div class="modal-actions">
+      <a id="vet-proof-link" class="btn btn-secondary btn-sm" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">원본 열기</a>
+      <button class="btn btn-primary btn-sm" id="vet-approve-btn" onclick="reviewVetVerification('APPROVED')">승인</button>
+      <button class="btn btn-warning btn-sm" id="vet-reject-btn" onclick="reviewVetVerification('REJECTED')">반려</button>
+      <button class="btn btn-cancel btn-sm" onclick="closeVetProofModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE = '';
+let token = localStorage.getItem('admin_token') || '';
+let timelineChart;
+let cumulativeUsersChart;
+let userSignupChart;
+let diagnosisPieChart;
+let speciesPieChart;
+let selectedVetUserId = null;
+
+async function api(method, path, body) {
+  const res = await fetch(BASE + path, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (res.status === 403 || res.status === 401) { logout(); return null; }
+  if (!res.ok) throw new Error(await res.text());
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+async function login() {
+  const email = document.getElementById('login-email').value;
+  const pw = document.getElementById('login-password').value;
+  try {
+    const res = await fetch(BASE + '/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pw })
+    });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    token = data.accessToken;
+    localStorage.setItem('admin_token', token);
+    showApp();
+  } catch {
+    document.getElementById('login-error').textContent = '이메일 또는 비밀번호가 올바르지 않습니다.';
+  }
+}
+
+function logout() {
+  localStorage.removeItem('admin_token');
+  token = '';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-page').style.display = 'flex';
+}
+
+function showApp() {
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadStats();
+}
+
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.sidebar nav a').forEach(a => a.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'stats') loadStats();
+  if (name === 'users') loadUsers();
+  if (name === 'hospitals') loadHospitals();
+  if (name === 'reviews') loadReviews();
+  if (name === 'qna') loadQna();
+}
+
+// 통계
+async function loadStats() {
+  const data = await api('GET', '/api/admin/stats/dashboard');
+  if (!data) return;
+
+  const summary = data.summary;
+  const daily = data.dailyMetrics || [];
+  const today = daily[daily.length - 1] || { diagnoses: 0, reviews: 0, qnaPosts: 0 };
+  const yesterday = daily[daily.length - 2] || { diagnoses: 0, reviews: 0, qnaPosts: 0 };
+
+  const diagnosisDelta = computeDelta(today.diagnoses, yesterday.diagnoses);
+  const reviewDelta = computeDelta(today.reviews, yesterday.reviews);
+  const qnaDelta = computeDelta(today.qnaPosts, yesterday.qnaPosts);
+
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card"><div class="label">총 유저</div><div class="value">${summary.totalUsers}</div></div>
+    <div class="stat-card"><div class="label">총 병원</div><div class="value">${summary.totalHospitals}</div></div>
+    <div class="stat-card">
+      <div class="label">총 진단</div><div class="value">${summary.totalDiagnoses}</div>
+      ${renderDeltaBadge(diagnosisDelta)}
+    </div>
+    <div class="stat-card">
+      <div class="label">총 리뷰</div><div class="value">${summary.totalReviews}</div>
+      ${renderDeltaBadge(reviewDelta)}
+    </div>
+    <div class="stat-card">
+      <div class="label">총 QnA</div><div class="value">${summary.totalQnaPosts}</div>
+      ${renderDeltaBadge(qnaDelta)}
+    </div>
+  `;
+  drawTimelineChart(daily);
+  drawCumulativeUsersChart(daily);
+  drawUserSignupChart(daily);
+  drawPieChart('diagnosis', data.diagnosisCategoryShares || []);
+  drawPieChart('species', data.qnaSpeciesShares || []);
+  renderTop5('diagnosis-top5', data.diagnosisCategoryShares || []);
+  renderTop5('species-top5', data.qnaSpeciesShares || []);
+}
+
+function computeDelta(current, previous) {
+  const cur = Number(current || 0);
+  const prev = Number(previous || 0);
+  if (prev === 0) {
+    if (cur === 0) return { direction: 'flat', percent: 0 };
+    return { direction: 'up', percent: 100 };
+  }
+  const raw = ((cur - prev) / prev) * 100;
+  if (raw > 0) return { direction: 'up', percent: Math.round(raw) };
+  if (raw < 0) return { direction: 'down', percent: Math.round(Math.abs(raw)) };
+  return { direction: 'flat', percent: 0 };
+}
+
+function renderDeltaBadge(delta) {
+  const classes = delta.direction === 'up'
+    ? 'delta-badge delta-up'
+    : (delta.direction === 'down' ? 'delta-badge delta-down' : 'delta-badge delta-flat');
+  const sign = delta.direction === 'up' ? '+' : (delta.direction === 'down' ? '-' : '');
+  const label = delta.direction === 'flat' ? '변동 없음' : `${sign}${delta.percent}%`;
+  return `
+    <div class="stat-foot">
+      <span class="${classes}">${label}</span>
+      <span class="delta-note">전일 대비</span>
+    </div>
+  `;
+}
+
+function drawTimelineChart(metrics) {
+  const ctx = document.getElementById('timeline-chart');
+  if (!ctx) return;
+  if (timelineChart) timelineChart.destroy();
+  const labels = metrics.map(m => m.date);
+  timelineChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: '진단', data: metrics.map(m => m.diagnoses), borderColor: '#4f46e5', backgroundColor: 'rgba(79,70,229,.12)', tension: .25, fill: true },
+        { label: '리뷰', data: metrics.map(m => m.reviews), borderColor: '#0891b2', backgroundColor: 'rgba(8,145,178,.08)', tension: .25, fill: true },
+        { label: 'QnA', data: metrics.map(m => m.qnaPosts), borderColor: '#f97316', backgroundColor: 'rgba(249,115,22,.08)', tension: .25, fill: true }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+}
+
+function drawPieChart(type, items) {
+  const ids = { diagnosis: 'diagnosis-pie', species: 'species-pie' };
+  const ctx = document.getElementById(ids[type]);
+  if (!ctx) return;
+  const colors = ['#4f46e5', '#0891b2', '#f97316', '#16a34a', '#e11d48', '#a855f7', '#f59e0b', '#0f766e'];
+  if (type === 'diagnosis' && diagnosisPieChart) diagnosisPieChart.destroy();
+  if (type === 'species' && speciesPieChart) speciesPieChart.destroy();
+  const chart = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: items.map(i => i.category),
+      datasets: [{ data: items.map(i => i.count), backgroundColor: colors }]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+  if (type === 'diagnosis') diagnosisPieChart = chart;
+  if (type === 'species') speciesPieChart = chart;
+}
+
+function drawCumulativeUsersChart(metrics) {
+  const ctx = document.getElementById('cumulative-users-chart');
+  if (!ctx) return;
+  if (cumulativeUsersChart) cumulativeUsersChart.destroy();
+
+  const labels = metrics.map(m => m.date);
+  const totals = metrics.map(m => Number(m.cumulativeUsers || 0));
+
+  cumulativeUsersChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: '누적 사용자',
+        data: totals,
+        borderColor: '#1d4ed8',
+        backgroundColor: 'rgba(37,99,235,.15)',
+        fill: true,
+        tension: .2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false
+    }
+  });
+}
+
+function drawUserSignupChart(metrics) {
+  const ctx = document.getElementById('user-signup-chart');
+  if (!ctx) return;
+  if (userSignupChart) userSignupChart.destroy();
+
+  const labels = metrics.map(m => m.date);
+  const signups = metrics.map(m => Number(m.userSignups || 0));
+
+  userSignupChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: '신규 사용자',
+        data: signups,
+        backgroundColor: '#0ea5e9'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false
+    }
+  });
+}
+
+function renderTop5(targetId, items) {
+  const root = document.getElementById(targetId);
+  if (!root) return;
+  const topItems = [...items]
+    .sort((a, b) => (b.count || 0) - (a.count || 0))
+    .slice(0, 5);
+
+  if (topItems.length === 0) {
+    root.innerHTML = '<div class="rank-item"><span class="left">데이터 없음</span><span class="right">-</span></div>';
+    return;
+  }
+
+  const total = topItems.reduce((sum, item) => sum + Number(item.count || 0), 0);
+  root.innerHTML = topItems.map((item, index) => {
+    const ratio = total > 0 ? Math.round((Number(item.count || 0) / total) * 100) : 0;
+    return `
+      <div class="rank-item">
+        <span class="left">${index + 1}. ${item.category || '기타'}</span>
+        <span class="right">${item.count || 0}건 (${ratio}%)</span>
+      </div>
+    `;
+  }).join('');
+}
+
+// 유저
+async function loadUsers() {
+  const data = await api('GET', '/api/admin/users');
+  if (!data) return;
+  document.getElementById('user-count').textContent = `유저 목록 (${data.length}명)`;
+  document.getElementById('user-tbody').innerHTML = data.map(u => `
+    <tr>
+      <td>${u.id}</td>
+      <td>${u.name}</td>
+      <td>${u.email}</td>
+      <td>${u.phoneNumber || '-'}</td>
+      <td><span class="badge ${u.role === 'ROLE_ADMIN' ? 'badge-red' : u.role === 'ROLE_VET' ? 'badge-blue' : 'badge-gray'}">${u.role}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-secondary btn-sm" onclick='openVetProofModal(${JSON.stringify(u)})'>인증자료 보기</button>
+        ${u.role === 'ROLE_ADMIN' ? '' : `<button class="btn ${u.role === 'ROLE_VET' ? 'btn-secondary' : 'btn-primary'} btn-sm" onclick="toggleVetRole(${u.id}, '${u.name}', '${u.role}')">${u.role === 'ROLE_VET' ? '수의사 해제' : '수의사 인증'}</button>`}
+        <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id}, '${u.name}')">삭제</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openVetProofModal(user) {
+  selectedVetUserId = user.id;
+  document.getElementById('vet-proof-user-name').textContent = `${user.name} (#${user.id})`;
+  document.getElementById('vet-proof-status').textContent = user.vetVerificationStatus || '-';
+  document.getElementById('vet-proof-license').textContent = user.vetLicenseNumber || '-';
+
+  const imageEl = document.getElementById('vet-proof-image');
+  const emptyEl = document.getElementById('vet-proof-empty');
+  const linkEl = document.getElementById('vet-proof-link');
+  const hasImage = !!user.vetProofImageUrl;
+
+  if (hasImage) {
+    imageEl.src = user.vetProofImageUrl;
+    imageEl.style.display = 'block';
+    emptyEl.style.display = 'none';
+    linkEl.href = user.vetProofImageUrl;
+    linkEl.style.display = 'inline-block';
+  } else {
+    imageEl.removeAttribute('src');
+    imageEl.style.display = 'none';
+    emptyEl.style.display = 'block';
+    linkEl.removeAttribute('href');
+    linkEl.style.display = 'none';
+  }
+
+  document.getElementById('vet-approve-btn').disabled = user.vetVerificationStatus === 'APPROVED';
+  document.getElementById('vet-reject-btn').disabled = user.vetVerificationStatus === 'REJECTED';
+  document.getElementById('vet-proof-modal').classList.add('open');
+}
+
+function closeVetProofModal() {
+  selectedVetUserId = null;
+  document.getElementById('vet-proof-modal').classList.remove('open');
+}
+
+async function reviewVetVerification(status) {
+  if (!selectedVetUserId) return;
+  const action = status === 'APPROVED' ? '승인' : '반려';
+  if (!confirm(`해당 수의사 인증을 ${action} 처리하시겠습니까?`)) return;
+  await api('PATCH', `/api/admin/users/${selectedVetUserId}/vet-verification`, { status, reviewNote: null });
+  closeVetProofModal();
+  loadUsers();
+}
+
+async function toggleVetRole(id, name, role) {
+  const nextRole = role === 'ROLE_VET' ? 'ROLE_USER' : 'ROLE_VET';
+  const action = nextRole === 'ROLE_VET' ? '인증' : '해제';
+  if (!confirm(`"${name}" 유저의 수의사 ${action}을 진행하시겠습니까?`)) return;
+  await api('PATCH', `/api/admin/users/${id}/role`, { role: nextRole });
+  loadUsers();
+}
+
+async function deleteUser(id, name) {
+  if (!confirm(`"${name}" 유저를 삭제하시겠습니까?`)) return;
+  await api('DELETE', `/api/admin/users/${id}`);
+  loadUsers();
+}
+
+// 병원
+async function loadHospitals() {
+  const data = await api('GET', '/api/admin/hospitals');
+  if (!data) return;
+  document.getElementById('hospital-count').textContent = `병원 목록 (${data.length}개)`;
+  document.getElementById('hospital-tbody').innerHTML = data.map(h => `
+    <tr>
+      <td>${h.hospitalId}</td>
+      <td>${h.name}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.address}</td>
+      <td>${h.phoneNumber || '-'}</td>
+      <td><span class="badge ${h.parkingAvailable ? 'badge-green' : 'badge-gray'}">${h.parkingAvailable ? '가능' : '불가'}</span></td>
+      <td><span class="badge ${h.nightCare ? 'badge-blue' : 'badge-gray'}">${h.nightCare ? '가능' : '불가'}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-primary btn-sm" onclick='openHospitalModal(${JSON.stringify(h)})'>수정</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteHospital(${h.hospitalId}, '${h.name}')">삭제</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openHospitalModal(h) {
+  document.getElementById('modal-title').textContent = h ? '병원 수정' : '병원 추가';
+  document.getElementById('modal-hospital-id').value = h ? h.hospitalId : '';
+  document.getElementById('modal-name').value = h ? h.name : '';
+  document.getElementById('modal-address').value = h ? h.address : '';
+  document.getElementById('modal-phone').value = h ? (h.phoneNumber || '') : '';
+  document.getElementById('modal-lat').value = h ? h.latitude : '';
+  document.getElementById('modal-lng').value = h ? h.longitude : '';
+  document.getElementById('modal-parking').checked = h ? h.parkingAvailable : false;
+  document.getElementById('modal-night').checked = h ? h.nightCare : false;
+  document.getElementById('hospital-modal').classList.add('open');
+}
+
+function closeHospitalModal() {
+  document.getElementById('hospital-modal').classList.remove('open');
+}
+
+async function saveHospital() {
+  const id = document.getElementById('modal-hospital-id').value;
+  const body = {
+    name: document.getElementById('modal-name').value,
+    address: document.getElementById('modal-address').value,
+    phoneNumber: document.getElementById('modal-phone').value || null,
+    latitude: parseFloat(document.getElementById('modal-lat').value),
+    longitude: parseFloat(document.getElementById('modal-lng').value),
+    parkingAvailable: document.getElementById('modal-parking').checked,
+    nightCare: document.getElementById('modal-night').checked,
+  };
+  if (id) {
+    await api('PUT', `/api/admin/hospitals/${id}`, body);
+  } else {
+    await api('POST', '/api/admin/hospitals', body);
+  }
+  closeHospitalModal();
+  loadHospitals();
+}
+
+async function deleteHospital(id, name) {
+  if (!confirm(`"${name}" 병원을 삭제하시겠습니까?`)) return;
+  await api('DELETE', `/api/admin/hospitals/${id}`);
+  loadHospitals();
+}
+
+// 리뷰
+async function loadReviews() {
+  const data = await api('GET', '/api/admin/reviews');
+  if (!data) return;
+  document.getElementById('review-count').textContent = `리뷰 목록 (${data.length}개)`;
+  document.getElementById('review-tbody').innerHTML = data.map(r => `
+    <tr>
+      <td>${r.reviewId}</td>
+      <td>${r.hospitalName}</td>
+      <td>${r.userId}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.review}</td>
+      <td>⭐ ${r.rating}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteReview(${r.reviewId})">삭제</button></td>
+    </tr>
+  `).join('');
+}
+
+async function deleteReview(id) {
+  if (!confirm('이 리뷰를 삭제하시겠습니까?')) return;
+  await api('DELETE', `/api/admin/reviews/${id}`);
+  loadReviews();
+}
+
+// QnA
+async function loadQna() {
+  const data = await api('GET', '/api/admin/qna');
+  if (!data) return;
+  document.getElementById('qna-count').textContent = `QnA 목록 (${data.length}개)`;
+  document.getElementById('qna-tbody').innerHTML = data.map(q => `
+    <tr>
+      <td>${q.id}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${q.title}</td>
+      <td>${q.userId}</td>
+      <td>${q.species || '-'}</td>
+      <td><span class="badge ${q.answered ? 'badge-green' : 'badge-gray'}">${q.answered ? '답변완료' : '미답변'}</span></td>
+      <td>${q.createdAt ? q.createdAt.substring(0, 10) : '-'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteQna(${q.id})">삭제</button></td>
+    </tr>
+  `).join('');
+}
+
+async function deleteQna(id) {
+  if (!confirm('이 QnA를 삭제하시겠습니까?')) return;
+  await api('DELETE', `/api/admin/qna/${id}`);
+  loadQna();
+}
+
+// 초기화
+if (token) showApp();
+</script>
+</body>
+</html>
