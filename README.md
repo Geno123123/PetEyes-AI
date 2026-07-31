@@ -313,10 +313,10 @@ docker compose up -d
 
 | 이름 | 역할 |
 |---|---|
-| 조형배 | Backend 개발 |
-| 이서정 | Backend 개발 |
 | 박유진 | Frontend 개발 |
 | 이승준 | AI 개발 |
+| 조형배 | Backend 개발 |
+| 이서정 | Backend 개발 |
 
 > 이 저장소의 GitHub 협업자는 연락이 닿은 AI/Frontend 담당 2인입니다. Backend 코드는 팀원들이 작성한 원본을 그대로 포함하고 있으며,
 > 프로젝트 전체 내용을 온전히 남기기 위해 함께 정리해 올렸습니다.
